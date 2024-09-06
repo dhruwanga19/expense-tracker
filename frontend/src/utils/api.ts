@@ -26,3 +26,17 @@ export const addCategory = async (category: Omit<Category, '_id'>): Promise<Cate
   export const deleteCategory = async (id: string): Promise<void> => {
     await axios.delete(`${API_URL}/categories/${id}`);
   };
+
+  export const updateExpense = async (expense: Expense): Promise<Expense> => {
+    const response = await axios.put(`${API_URL}/expenses/${expense._id}`, expense);
+    return response.data;
+  };
+
+  export const updateCategory = async (category: Category): Promise<Category> => {
+    const response = await axios.put(`${API_URL}/categories/${category._id}`, category);
+    return response.data;
+  };
+
+  export const deleteExpenses = async (expenseIds: string[]): Promise<void> => {
+    await axios.post(`${API_URL}/expenses/delete`, { ids: expenseIds });
+  };

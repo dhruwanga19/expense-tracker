@@ -11,7 +11,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, ChevronDown, MoreHorizontal } from "lucide-react";
+import { ArrowUpDown, ChevronDown, MoreHorizontal, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -32,123 +32,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Expense } from "@/types";
+import { Category, Expense } from "@/types";
 import { format } from "date-fns";
+import { EditExpenseDialog } from "./EditExpenseDialog";
 
-export const columns: ColumnDef<Expense>[] = [
-  {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={table.getIsAllPageRowsSelected()}
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
-  {
-    accessorKey: "name",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Name
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
-    cell: ({ row }) => <div className="lowercase">{row.getValue("name")}</div>,
-  },
-  {
-    accessorKey: "amount",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Amount
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
-    cell: ({ row }) => {
-      const amount = parseFloat(row.getValue("amount"));
-      const formatted = new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-      }).format(amount);
-      return <div className="text-right font-medium">{formatted}</div>;
-    },
-  },
-  {
-    accessorKey: "category",
-    header: "Category",
-    cell: ({ row }) => {
-      const category = row.getValue("category") as Expense["category"];
-      return <div>{category?.name || "Uncategorized"}</div>;
-    },
-  },
-  {
-    accessorKey: "date",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Date
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
-    cell: ({ row }) => (
-      <div>{format(new Date(row.getValue("date")), "PPP")}</div>
-    ),
-  },
-  {
-    id: "actions",
-    enableHiding: false,
-    cell: ({ row }) => {
-      const expense = row.original;
+interface ExpensesDataTableProps {
+  expenses: Expense[];
+  categories: Category[];
+  onUpdateExpense: (updatedExpense: Expense) => void;
+  onDeleteExpenses: (expenseIds: string[]) => void;
+}
 
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(expense._id)}
-            >
-              Copy expense ID
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>View details</DropdownMenuItem>
-            <DropdownMenuItem>Edit</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
-    },
-  },
-];
-
-export function ExpensesDataTable({ expenses }: { expenses: Expense[] }) {
+export function ExpensesDataTable({
+  expenses,
+  categories,
+  onUpdateExpense,
+  onDeleteExpenses,
+}: ExpensesDataTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
@@ -157,6 +57,125 @@ export function ExpensesDataTable({ expenses }: { expenses: Expense[] }) {
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
 
+  const [editingExpense, setEditingExpense] = React.useState<Expense | null>(
+    null
+  );
+
+  const columns: ColumnDef<Expense>[] = [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={table.getIsAllPageRowsSelected()}
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+    {
+      accessorKey: "name",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Name
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
+      cell: ({ row }) => (
+        <div className="lowercase">{row.getValue("name")}</div>
+      ),
+    },
+    {
+      accessorKey: "amount",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Amount
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
+      cell: ({ row }) => {
+        const amount = parseFloat(row.getValue("amount"));
+        const formatted = new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "USD",
+        }).format(amount);
+        return <div className="text-right font-medium">{formatted}</div>;
+      },
+    },
+    {
+      accessorKey: "category",
+      header: "Category",
+      cell: ({ row }) => {
+        const category = row.getValue("category") as Expense["category"];
+        return <div>{category?.name || "Uncategorized"}</div>;
+      },
+    },
+    {
+      accessorKey: "date",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Date
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
+      cell: ({ row }) => (
+        <div>{format(new Date(row.getValue("date")), "PPP")}</div>
+      ),
+    },
+    {
+      id: "actions",
+      enableHiding: false,
+      cell: ({ row }) => {
+        const expense = row.original;
+
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem
+                onClick={() => navigator.clipboard.writeText(expense._id)}
+              >
+                Copy expense ID
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setEditingExpense(expense)}>
+                Edit
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+    },
+  ];
   const table = useReactTable({
     data: expenses,
     columns,
@@ -176,6 +195,11 @@ export function ExpensesDataTable({ expenses }: { expenses: Expense[] }) {
     },
   });
 
+  const handleDeleteSelected = () => {
+    const selectedRows = table.getFilteredSelectedRowModel().rows;
+    const expenseIdsToDelete = selectedRows.map((row) => row.original._id);
+    onDeleteExpenses(expenseIdsToDelete);
+  };
   return (
     <div className="w-full">
       <div className="flex items-center py-4">
@@ -213,6 +237,16 @@ export function ExpensesDataTable({ expenses }: { expenses: Expense[] }) {
               })}
           </DropdownMenuContent>
         </DropdownMenu>
+        <Button
+          onClick={handleDeleteSelected}
+          variant="destructive"
+          size="sm"
+          className="ml-2"
+          disabled={table.getFilteredSelectedRowModel().rows.length === 0}
+        >
+          <Trash className="h-4 w-4 mr-2" />
+          Delete Selected
+        </Button>
       </div>
       <div className="rounded-md border">
         <Table>
@@ -288,6 +322,18 @@ export function ExpensesDataTable({ expenses }: { expenses: Expense[] }) {
           </Button>
         </div>
       </div>
+      {editingExpense && (
+        <EditExpenseDialog
+          expense={editingExpense}
+          categories={categories}
+          isOpen={!!editingExpense}
+          onClose={() => setEditingExpense(null)}
+          onSave={(updatedExpense) => {
+            onUpdateExpense(updatedExpense);
+            setEditingExpense(null);
+          }}
+        />
+      )}
     </div>
   );
 }

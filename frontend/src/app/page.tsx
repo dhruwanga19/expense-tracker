@@ -7,6 +7,9 @@ import {
   getCategories,
   addCategory,
   deleteCategory,
+  updateExpense,
+  updateCategory,
+  deleteExpenses,
 } from "@/utils/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,15 +51,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { CategoryManager } from "./_components/CategoryManager";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { ExpensesDataTable } from "./_components/ExpensesDataTable";
 
 const formSchema = z.object({
@@ -122,6 +116,24 @@ export default function Home() {
   const handleDeleteCategory = async (id: string) => {
     await deleteCategory(id);
     fetchCategories();
+  };
+
+  const handleUpdateExpense = async (updatedExpense: Expense) => {
+    await updateExpense(updatedExpense);
+    fetchExpenses();
+  };
+  const handleUpdateCategory = async (updatedCategory: Category) => {
+    await updateCategory(updatedCategory);
+    fetchCategories();
+  };
+
+  const handleDeleteExpenses = async (expenseIds: string[]) => {
+    try {
+      await deleteExpenses(expenseIds);
+      fetchExpenses();
+    } catch (error) {
+      console.error("Error deleting expenses:", error);
+    }
   };
 
   return (
@@ -259,13 +271,18 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            <Card className="mt-8">
+            <Card>
               <CardHeader>
                 <CardTitle>Expense List</CardTitle>
                 <CardDescription>Your recent expenses.</CardDescription>
               </CardHeader>
               <CardContent>
-                <ExpensesDataTable expenses={expenses} />
+                <ExpensesDataTable
+                  expenses={expenses}
+                  categories={categories}
+                  onUpdateExpense={handleUpdateExpense}
+                  onDeleteExpenses={handleDeleteExpenses}
+                />
               </CardContent>
             </Card>
           </div>
@@ -283,6 +300,7 @@ export default function Home() {
                 categories={categories}
                 onAddCategory={handleAddCategory}
                 onDeleteCategory={handleDeleteCategory}
+                onUpdateCategory={handleUpdateCategory}
               />
             </CardContent>
           </Card>

@@ -31,6 +31,10 @@ type Category struct {
 	Name string             `bson:"name" json:"name"`
 }
 
+type DeleteExpensesRequest struct {
+	IDs []string `json:"ids"`
+}
+
 var client *mongo.Client
 var categoriesCollection *mongo.Collection
 var expensesCollection *mongo.Collection
@@ -51,6 +55,9 @@ func main() {
 	r.HandleFunc("/api/categories", getCategoriesHandler).Methods("GET")
 	r.HandleFunc("/api/categories", addCategoryHandler).Methods("POST")
 	r.HandleFunc("/api/categories/{id}", deleteCategoryHandler).Methods("DELETE")
+	r.HandleFunc("/api/expenses/{id}", updateExpenseHandler).Methods("PUT")
+	r.HandleFunc("/api/categories/{id}", updateCategoryHandler).Methods("PUT")
+	r.HandleFunc("/api/expenses/delete", deleteExpensesHandler).Methods("POST")
 
 	// Use cors middleware
 	c := cors.New(cors.Options{
@@ -116,8 +123,6 @@ func addExpenseHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	// expense.Date = time.Now()
 
 	result, err := expensesCollection.InsertOne(ctx, expense)
 	if err != nil {
@@ -229,4 +234,102 @@ func deleteCategoryHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func updateExpenseHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	params := mux.Vars(r)
+	id, err := primitive.ObjectIDFromHex(params["id"])
+	if err != nil {
+		http.Error(w, "Invalid expense ID", http.StatusBadRequest)
+		return
+	}
+
+	var updatedExpense Expense
+	err = json.NewDecoder(r.Body).Decode(&updatedExpense)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	filter := bson.M{"_id": id}
+	update := bson.M{"$set": updatedExpense}
+
+	result, err := expensesCollection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if result.ModifiedCount == 0 {
+		http.Error(w, "Expense not found", http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(updatedExpense)
+}
+
+func updateCategoryHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	params := mux.Vars(r)
+	id, err := primitive.ObjectIDFromHex(params["id"])
+	if err != nil {
+		http.Error(w, "Invalid category ID", http.StatusBadRequest)
+		return
+	}
+
+	var updatedCategory Category
+	err = json.NewDecoder(r.Body).Decode(&updatedCategory)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	filter := bson.M{"_id": id}
+	update := bson.M{"$set": bson.M{"name": updatedCategory.Name}}
+
+	result, err := categoriesCollection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if result.ModifiedCount == 0 {
+		http.Error(w, "Category not found", http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(updatedCategory)
+}
+
+func deleteExpensesHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	var req DeleteExpensesRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var objectIDs []primitive.ObjectID
+	for _, id := range req.IDs {
+		objID, err := primitive.ObjectIDFromHex(id)
+		if err != nil {
+			http.Error(w, "Invalid expense ID", http.StatusBadRequest)
+			return
+		}
+		objectIDs = append(objectIDs, objID)
+	}
+
+	filter := bson.M{"_id": bson.M{"$in": objectIDs}}
+	result, err := expensesCollection.DeleteMany(ctx, filter)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]int64{"deleted": result.DeletedCount})
 }
