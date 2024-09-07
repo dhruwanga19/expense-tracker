@@ -146,7 +146,13 @@ export function EditExpenseDialog({
                     <SelectContent>
                       {categories.map((category) => (
                         <SelectItem key={category._id} value={category._id}>
-                          {category.name}
+                          <div className="flex items-center">
+                            <div
+                              className="w-4 h-4 rounded-full mr-2"
+                              style={{ backgroundColor: category.color }}
+                            />
+                            {category.name}
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>

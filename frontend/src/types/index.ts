@@ -7,10 +7,12 @@ export interface Expense {
     category?: {
       _id: string;
       name: string;
+      color: string;
     };
   }
   
   export interface Category {
     _id: string;
     name: string;
+    color: string;
   }

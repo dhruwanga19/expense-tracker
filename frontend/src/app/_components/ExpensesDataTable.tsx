@@ -11,7 +11,15 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, ChevronDown, MoreHorizontal, Trash } from "lucide-react";
+import {
+  ArrowUpDown,
+  ChevronDown,
+  Copy,
+  MoreHorizontal,
+  Pen,
+  Pencil,
+  Trash,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -35,6 +43,22 @@ import {
 import { Category, Expense } from "@/types";
 import { format } from "date-fns";
 import { EditExpenseDialog } from "./EditExpenseDialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "@/hooks/use-toast";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface ExpensesDataTableProps {
   expenses: Expense[];
@@ -65,18 +89,24 @@ export function ExpensesDataTable({
     {
       id: "select",
       header: ({ table }) => (
-        <Checkbox
-          checked={table.getIsAllPageRowsSelected()}
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Select all"
-        />
+        <div className="flex justify-center">
+          <Checkbox
+            checked={table.getIsAllPageRowsSelected()}
+            onCheckedChange={(value) =>
+              table.toggleAllPageRowsSelected(!!value)
+            }
+            aria-label="Select all"
+          />
+        </div>
       ),
       cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
-        />
+        <div className="flex justify-center">
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(value) => row.toggleSelected(!!value)}
+            aria-label="Select row"
+          />
+        </div>
       ),
       enableSorting: false,
       enableHiding: false,
@@ -88,6 +118,7 @@ export function ExpensesDataTable({
           <Button
             variant="ghost"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="w-full justify-center"
           >
             Name
             <ArrowUpDown className="ml-2 h-4 w-4" />
@@ -105,6 +136,7 @@ export function ExpensesDataTable({
           <Button
             variant="ghost"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="w-full justify-center"
           >
             Amount
             <ArrowUpDown className="ml-2 h-4 w-4" />
@@ -117,15 +149,26 @@ export function ExpensesDataTable({
           style: "currency",
           currency: "USD",
         }).format(amount);
-        return <div className="text-right font-medium">{formatted}</div>;
+        return <div className="text-center font-medium">{formatted}</div>;
       },
     },
     {
       accessorKey: "category",
-      header: "Category",
+      header: () => <div className="text-center"> Category</div>,
       cell: ({ row }) => {
         const category = row.getValue("category") as Expense["category"];
-        return <div>{category?.name || "Uncategorized"}</div>;
+        return (
+          <div className="flex justify-center">
+            <Badge
+              style={{
+                backgroundColor: category?.color || "#808080",
+                color: getContrastColor(category?.color || "#808080"),
+              }}
+            >
+              {category?.name || "Uncategorized"}
+            </Badge>
+          </div>
+        );
       },
     },
     {
@@ -135,6 +178,7 @@ export function ExpensesDataTable({
           <Button
             variant="ghost"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="w-full text-center justify-center"
           >
             Date
             <ArrowUpDown className="ml-2 h-4 w-4" />
@@ -148,30 +192,43 @@ export function ExpensesDataTable({
     {
       id: "actions",
       enableHiding: false,
+      header: () => <div className="text-center"> Actions</div>,
       cell: ({ row }) => {
         const expense = row.original;
 
         return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() => navigator.clipboard.writeText(expense._id)}
-              >
-                Copy expense ID
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setEditingExpense(expense)}>
-                Edit
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center justify-center space-x-2">
+            <Tooltip>
+              <TooltipTrigger>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    navigator.clipboard.writeText(expense._id);
+                    toast({
+                      title: "Copied",
+                      description: "Expense ID copied to clipboard",
+                    });
+                  }}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Copy ID</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setEditingExpense(expense)}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <TooltipContent>Edit Expense</TooltipContent>
+              </TooltipTrigger>
+            </Tooltip>
+          </div>
         );
       },
     },
@@ -200,6 +257,20 @@ export function ExpensesDataTable({
     const expenseIdsToDelete = selectedRows.map((row) => row.original._id);
     onDeleteExpenses(expenseIdsToDelete);
   };
+
+  const getContrastColor = (hexColor: string) => {
+    // Convert hex to RGB
+    const r = parseInt(hexColor.slice(1, 3), 16);
+    const g = parseInt(hexColor.slice(3, 5), 16);
+    const b = parseInt(hexColor.slice(5, 7), 16);
+
+    // Calculate luminance
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+    // Return black or white depending on luminance
+    return luminance > 0.5 ? "#000000" : "#ffffff";
+  };
+
   return (
     <div className="w-full">
       <div className="flex items-center py-4">
@@ -237,16 +308,40 @@ export function ExpensesDataTable({
               })}
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button
-          onClick={handleDeleteSelected}
-          variant="destructive"
-          size="sm"
-          className="ml-2"
-          disabled={table.getFilteredSelectedRowModel().rows.length === 0}
-        >
-          <Trash className="h-4 w-4 mr-2" />
-          Delete Selected
-        </Button>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="ml-2"
+              disabled={table.getFilteredSelectedRowModel().rows.length === 0}
+            >
+              <Trash className="h-4 w-4 mr-2" />
+              Delete Selected
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                Are you sure you want to delete the selected expenses?
+              </DialogTitle>
+              <DialogDescription>
+                This action cannot be undone. This will permanently delete the
+                expenses and remove it from our servers.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  handleDeleteSelected;
+                }}
+              >
+                Delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
       <div className="rounded-md border">
         <Table>
@@ -255,7 +350,7 @@ export function ExpensesDataTable({
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
                   return (
-                    <TableHead key={header.id}>
+                    <TableHead key={header.id} className="text-center">
                       {header.isPlaceholder
                         ? null
                         : flexRender(
@@ -276,7 +371,7 @@ export function ExpensesDataTable({
                   data-state={row.getIsSelected() && "selected"}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell key={cell.id} className="text-center">
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext()

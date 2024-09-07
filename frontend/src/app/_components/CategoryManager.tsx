@@ -14,10 +14,11 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { EditCategoryDialog } from "./EditCategoryDialog";
+import { toast } from "@/hooks/use-toast";
 
 interface CategoryManagerProps {
   categories: Category[];
-  onAddCategory: (name: string) => void;
+  onAddCategory: (name: string, color: string) => Promise<void>;
   onUpdateCategory: (updatedCategory: Category) => void;
   onDeleteCategory: (id: string) => void;
 }
@@ -29,12 +30,55 @@ export function CategoryManager({
   onDeleteCategory,
 }: CategoryManagerProps) {
   const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryColor, setNewCategoryColor] = useState("#000000");
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
 
-  const handleAddCategory = () => {
+  const handleAddCategory = async () => {
     if (newCategoryName.trim()) {
-      onAddCategory(newCategoryName.trim());
-      setNewCategoryName("");
+      // Check if the name already exists
+      if (
+        categories.some(
+          (cat) =>
+            cat.name.toLowerCase() === newCategoryName.trim().toLowerCase()
+        )
+      ) {
+        toast({
+          title: "Error",
+          description: "A category with this name already exists.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check if the color already exists
+      if (
+        categories.some(
+          (cat) => cat.color.toLowerCase() === newCategoryColor.toLowerCase()
+        )
+      ) {
+        toast({
+          title: "Error",
+          description: "A category with this color already exists.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      try {
+        await onAddCategory(newCategoryName.trim(), newCategoryColor);
+        setNewCategoryName("");
+        setNewCategoryColor("#000000");
+        toast({
+          title: "Success",
+          description: "Category added successfully.",
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to add category. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -46,6 +90,12 @@ export function CategoryManager({
           onChange={(e) => setNewCategoryName(e.target.value)}
           placeholder="New category name"
         />
+        <Input
+          type="color"
+          value={newCategoryColor}
+          onChange={(e) => setNewCategoryColor(e.target.value)}
+          className="w-12 p-1"
+        />
         <Button onClick={handleAddCategory}>
           <PlusCircle className="mr-2 h-4 w-4" /> Add
         </Button>
@@ -53,7 +103,13 @@ export function CategoryManager({
       <ul className="space-y-2">
         {categories.map((category) => (
           <li key={category._id} className="flex justify-between items-center">
-            <span>{category.name}</span>
+            <span className="flex items-center">
+              <div
+                className="w-4 h-4 rounded-full mr-2"
+                style={{ backgroundColor: category.color }}
+              ></div>
+              {category.name}
+            </span>
             <div>
               <Button size="sm" onClick={() => setEditingCategory(category)}>
                 <Pencil className="h-4 w-4" />
@@ -91,6 +147,7 @@ export function CategoryManager({
       {editingCategory && (
         <EditCategoryDialog
           category={editingCategory}
+          categories={categories}
           isOpen={!!editingCategory}
           onClose={() => setEditingCategory(null)}
           onSave={(updatedCategory) => {

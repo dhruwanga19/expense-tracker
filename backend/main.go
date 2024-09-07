@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -27,8 +28,9 @@ type Expense struct {
 }
 
 type Category struct {
-	ID   primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
-	Name string             `bson:"name" json:"name"`
+	ID    primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
+	Name  string             `bson:"name" json:"name"`
+	Color string             `bson:"color" json:"color"`
 }
 
 type DeleteExpensesRequest struct {
@@ -59,7 +61,6 @@ func main() {
 	r.HandleFunc("/api/categories/{id}", updateCategoryHandler).Methods("PUT")
 	r.HandleFunc("/api/expenses/delete", deleteExpensesHandler).Methods("POST")
 
-	// Use cors middleware
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{"http://localhost:3000"},
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},
@@ -286,8 +287,38 @@ func updateCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if the name already exists (excluding the current category)
+	var existingCategory Category
+	err = categoriesCollection.FindOne(ctx, bson.M{
+		"_id":  bson.M{"$ne": id},
+		"name": bson.M{"$regex": primitive.Regex{Pattern: "^" + updatedCategory.Name + "$", Options: "i"}},
+	}).Decode(&existingCategory)
+	if err == nil {
+		http.Error(w, "A category with this name already exists", http.StatusConflict)
+		return
+	} else if err != mongo.ErrNoDocuments {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Check if the color already exists (excluding the current category)
+	err = categoriesCollection.FindOne(ctx, bson.M{
+		"_id":   bson.M{"$ne": id},
+		"color": strings.ToLower(updatedCategory.Color),
+	}).Decode(&existingCategory)
+	if err == nil {
+		http.Error(w, "A category with this color already exists", http.StatusConflict)
+		return
+	} else if err != mongo.ErrNoDocuments {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Convert color to lowercase before saving
+	updatedCategory.Color = strings.ToLower(updatedCategory.Color)
+
 	filter := bson.M{"_id": id}
-	update := bson.M{"$set": bson.M{"name": updatedCategory.Name}}
+	update := bson.M{"$set": bson.M{"name": updatedCategory.Name, "color": updatedCategory.Color}}
 
 	result, err := categoriesCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
@@ -300,6 +331,8 @@ func updateCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	updatedCategory.ID = id
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(updatedCategory)
 }

@@ -52,6 +52,7 @@ import {
 } from "@/components/ui/popover";
 import { CategoryManager } from "./_components/CategoryManager";
 import { ExpensesDataTable } from "./_components/ExpensesDataTable";
+import Overview from "./_components/Overview";
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -108,8 +109,8 @@ export default function Home() {
     fetchExpenses();
   };
 
-  const handleAddCategory = async (name: string) => {
-    await addCategory({ name });
+  const handleAddCategory = async (name: string, color: string) => {
+    await addCategory({ name, color });
     fetchCategories();
   };
 
@@ -122,6 +123,7 @@ export default function Home() {
     await updateExpense(updatedExpense);
     fetchExpenses();
   };
+
   const handleUpdateCategory = async (updatedCategory: Category) => {
     await updateCategory(updatedCategory);
     fetchCategories();
@@ -137,162 +139,181 @@ export default function Home() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="max-w-7xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Expense Tracker</h1>
 
-      <Tabs defaultValue="expenses" className="w-full">
-        <TabsList className="items-center justify-center">
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="expenses">Expenses</TabsTrigger>
+          <TabsTrigger value="add-expense">Add Expense</TabsTrigger>
           <TabsTrigger value="categories">Categories</TabsTrigger>
         </TabsList>
-        <TabsContent value="expenses">
-          <div className="flex gap-5">
-            <Card>
-              <CardHeader>
-                <CardTitle>Add New Expense</CardTitle>
-                <CardDescription>
-                  Enter the details of your new expense.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Form {...form}>
-                  <form
-                    onSubmit={form.handleSubmit(onSubmit)}
-                    className="space-y-8"
-                  >
-                    <FormField
-                      control={form.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Expense Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Expense Name" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="amount"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Amount</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              placeholder="Amount"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="categoryId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Category</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a category" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {categories.map((category) => (
-                                <SelectItem
-                                  key={category._id}
-                                  value={category._id}
-                                >
-                                  {category.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="date"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                          <FormLabel>Date</FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button
-                                  variant={"outline"}
-                                  className={cn(
-                                    "w-[240px] pl-3 text-left font-normal",
-                                    !field.value && "text-muted-foreground"
-                                  )}
-                                >
-                                  {field.value ? (
-                                    format(field.value, "PPP")
-                                  ) : (
-                                    <span>Pick a date</span>
-                                  )}
-                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent
-                              className="w-auto p-0"
-                              align="start"
-                            >
-                              <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                disabled={(date) =>
-                                  date > new Date() ||
-                                  date < new Date("1900-01-01")
-                                }
-                                initialFocus
-                              />
-                            </PopoverContent>
-                          </Popover>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button type="submit">Add Expense</Button>
-                  </form>
-                </Form>
-              </CardContent>
-            </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Expense List</CardTitle>
-                <CardDescription>Your recent expenses.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ExpensesDataTable
-                  expenses={expenses}
-                  categories={categories}
-                  onUpdateExpense={handleUpdateExpense}
-                  onDeleteExpenses={handleDeleteExpenses}
-                />
-              </CardContent>
-            </Card>
-          </div>
+        <TabsContent value="overview">
+          <Card>
+            <CardHeader>
+              <CardTitle>Overview</CardTitle>
+              <CardDescription>Overview of your expenses</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Overview expenses={expenses} categories={categories} />
+            </CardContent>
+          </Card>
         </TabsContent>
+
+        <TabsContent value="expenses">
+          <Card>
+            <CardHeader>
+              <CardTitle>Expenses</CardTitle>
+              <CardDescription>Manage your expenses</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ExpensesDataTable
+                expenses={expenses}
+                categories={categories}
+                onUpdateExpense={handleUpdateExpense}
+                onDeleteExpenses={handleDeleteExpenses}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="add-expense">
+          <Card>
+            <CardHeader>
+              <CardTitle>Add New Expense</CardTitle>
+              <CardDescription>
+                Enter the details of your new expense
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Form {...form}>
+                <form
+                  onSubmit={form.handleSubmit(onSubmit)}
+                  className="space-y-8"
+                >
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Expense Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Expense Name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="amount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Amount</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Amount"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="categoryId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Category</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a category" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {categories.map((category) => (
+                              <SelectItem
+                                key={category._id}
+                                value={category._id}
+                              >
+                                <div className="flex items-center">
+                                  <div
+                                    className="w-4 h-4 rounded-full mr-2"
+                                    style={{ backgroundColor: category.color }}
+                                  ></div>
+                                  {category.name}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="date"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Date</FormLabel>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant={"outline"}
+                                className={cn(
+                                  "w-[240px] pl-3 text-left font-normal",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {field.value ? (
+                                  format(field.value, "PPP")
+                                ) : (
+                                  <span>Pick a date</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={field.onChange}
+                              disabled={(date) =>
+                                date > new Date() ||
+                                date < new Date("1900-01-01")
+                              }
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button type="submit">Add Expense</Button>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="categories">
           <Card>
             <CardHeader>
               <CardTitle>Category Management</CardTitle>
               <CardDescription>
-                Add, edit, or delete expense categories.
+                Add, edit, or delete expense categories
               </CardDescription>
             </CardHeader>
             <CardContent>
