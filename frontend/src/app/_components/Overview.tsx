@@ -66,6 +66,18 @@ const Overview: React.FC<OverviewProps> = ({ expenses, categories }) => {
     return Array.from(monthMap, ([name, amount]) => ({ name, amount }));
   }, [expenses]);
 
+  if (expenses.length === 0) {
+    return (
+      <Card className="w-full h-[400px] flex items-center justify-center">
+        <CardContent>
+          <p className="text-2xl font-semibold text-gray-500">
+            No expenses added
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

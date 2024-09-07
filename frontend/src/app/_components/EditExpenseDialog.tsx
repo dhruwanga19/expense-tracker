@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, CircleCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -36,6 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Expense, Category } from "@/types";
+import { useToast } from "@/components/hooks/use-toast";
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -67,6 +68,7 @@ export function EditExpenseDialog({
   onClose,
   onSave,
 }: EditExpenseDialogProps) {
+  const { toast } = useToast();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -87,6 +89,16 @@ export function EditExpenseDialog({
     };
     onSave(updatedExpense);
     onClose();
+    toast({
+      title: "Success",
+      description: (
+        <div className="flex items-center gap-2">
+          <CircleCheck className="h-4 w-4 text-green-500" />
+          <span>Your expense has been successfully updated.</span>
+        </div>
+      ),
+      variant: "default",
+    });
   }
 
   return (

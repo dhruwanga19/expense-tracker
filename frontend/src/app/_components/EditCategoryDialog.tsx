@@ -20,7 +20,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Category } from "@/types";
-import { toast } from "@/hooks/use-toast";
+import { useToast } from "@/components/hooks/use-toast";
+import { CircleAlert } from "lucide-react";
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -46,6 +47,7 @@ export function EditCategoryDialog({
   onClose,
   onSave,
 }: EditCategoryDialogProps) {
+  const { toast } = useToast();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -65,7 +67,12 @@ export function EditCategoryDialog({
     ) {
       toast({
         title: "Error",
-        description: "A category with this name already exists.",
+        description: (
+          <div className="flex items-center gap-2">
+            <CircleAlert className="h-4 w-4 text-white" />
+            <span>A Category with this name exists. Add a distinct name.</span>
+          </div>
+        ),
         variant: "destructive",
       });
       return;
@@ -81,7 +88,14 @@ export function EditCategoryDialog({
     ) {
       toast({
         title: "Error",
-        description: "A category with this color already exists.",
+        description: (
+          <div className="flex items-center gap-2">
+            <CircleAlert className="h-4 w-4 text-white" />
+            <span>
+              A Category with this color exists. Choose a distinct color.
+            </span>
+          </div>
+        ),
         variant: "destructive",
       });
       return;

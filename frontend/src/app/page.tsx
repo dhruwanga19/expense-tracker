@@ -44,7 +44,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { Calendar as CalendarIcon } from "lucide-react";
+import {
+  Calendar as CalendarIcon,
+  CircleAlert,
+  CircleCheck,
+} from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -53,6 +57,7 @@ import {
 import { CategoryManager } from "./_components/CategoryManager";
 import { ExpensesDataTable } from "./_components/ExpensesDataTable";
 import Overview from "./_components/Overview";
+import { useToast } from "@/components/hooks/use-toast";
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -70,6 +75,7 @@ const formSchema = z.object({
 });
 
 export default function Home() {
+  const { toast } = useToast();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
 
@@ -104,43 +110,195 @@ export default function Home() {
       amount: Number(values.amount),
       categoryId: values.categoryId,
       date: values.date,
-    });
+    })
+      .then(() => {
+        toast({
+          title: "Success",
+          description: (
+            <div className="flex items-center gap-2">
+              <CircleCheck className="h-4 w-4 text-green-500" />
+              <span>Your expense has been added successfully.</span>
+            </div>
+          ),
+          variant: "default",
+        });
+      })
+      .catch((error) => {
+        toast({
+          title: "Error",
+          description: (
+            <div className="flex items-center gap-2">
+              <CircleAlert className="h-4 w-4 text-white" />
+              <span>`An error occurred. Please try again. ${error}`</span>
+            </div>
+          ),
+          variant: "destructive",
+        });
+      });
+
     form.reset();
     fetchExpenses();
   };
 
   const handleAddCategory = async (name: string, color: string) => {
-    await addCategory({ name, color });
+    await addCategory({ name, color })
+      .then(() => {
+        toast({
+          title: "Success",
+          description: (
+            <div className="flex items-center gap-2">
+              <CircleCheck className="h-4 w-4 text-green-500" />
+              <span>
+                Category <strong>{name}</strong> added successfully.
+              </span>
+            </div>
+          ),
+          variant: "default",
+        });
+      })
+      .catch((error) => {
+        toast({
+          title: "Error",
+          description: (
+            <div className="flex items-center gap-2">
+              <CircleAlert className="h-4 w-4 text-white" />
+              <span>An error occurred. Please try again.</span>
+            </div>
+          ),
+          variant: "destructive",
+        });
+      });
+
     fetchCategories();
   };
 
   const handleDeleteCategory = async (id: string) => {
-    await deleteCategory(id);
+    await deleteCategory(id)
+      .then(() => {
+        toast({
+          title: "Success",
+          description: (
+            <div className="flex items-center gap-2">
+              <CircleCheck className="h-4 w-4 text-green-500" />
+              <span>
+                Category and its associated expenses deleted successfully.
+              </span>
+            </div>
+          ),
+          variant: "default",
+        });
+      })
+      .catch((error) => {
+        toast({
+          title: "Error",
+          description: (
+            <div className="flex items-center gap-2">
+              <CircleAlert className="h-4 w-4 text-white" />
+              <span>
+                An error occurred while deleting category. Please try again.
+              </span>
+            </div>
+          ),
+          variant: "destructive",
+        });
+      });
     fetchCategories();
+    fetchExpenses();
   };
 
   const handleUpdateExpense = async (updatedExpense: Expense) => {
-    await updateExpense(updatedExpense);
+    await updateExpense(updatedExpense)
+      .then(() => {
+        toast({
+          title: "Success",
+          description: (
+            <div className="flex items-center gap-2">
+              <CircleCheck className="h-4 w-4 text-green-500" />
+              <span>Your expense has been successfully updated.</span>
+            </div>
+          ),
+          variant: "default",
+        });
+      })
+      .catch((error) => {
+        toast({
+          title: "Error",
+          description: (
+            <div className="flex items-center gap-2">
+              <CircleAlert className="h-4 w-4 text-white" />
+              <span>An error occurred. Please try again.</span>
+            </div>
+          ),
+          variant: "destructive",
+        });
+      });
+
     fetchExpenses();
   };
 
   const handleUpdateCategory = async (updatedCategory: Category) => {
-    await updateCategory(updatedCategory);
+    await updateCategory(updatedCategory)
+      .then(() => {
+        toast({
+          title: "Success",
+          description: (
+            <div className="flex items-center gap-2">
+              <CircleCheck className="h-4 w-4 text-green-500" />
+              <span>Category updated successfully.</span>
+            </div>
+          ),
+          variant: "default",
+        });
+      })
+      .catch((error) => {
+        toast({
+          title: "Error",
+          description: (
+            <div className="flex items-center gap-2">
+              <CircleAlert className="h-4 w-4 text-white" />
+              <span>An error occurred. Please try again.</span>
+            </div>
+          ),
+          variant: "destructive",
+        });
+      });
+
     fetchCategories();
   };
 
   const handleDeleteExpenses = async (expenseIds: string[]) => {
-    try {
-      await deleteExpenses(expenseIds);
-      fetchExpenses();
-    } catch (error) {
-      console.error("Error deleting expenses:", error);
-    }
+    await deleteExpenses(expenseIds)
+      .then(() => {
+        toast({
+          title: "Success",
+          description: (
+            <div className="flex items-center gap-2">
+              <CircleCheck className="h-4 w-4 text-green-500" />
+              <span>Expenses deleted successfully.</span>
+            </div>
+          ),
+          variant: "default",
+        });
+      })
+      .catch((error) => {
+        toast({
+          title: "Error",
+          description: (
+            <div className="flex items-center gap-2">
+              <CircleAlert className="h-4 w-4 text-white" />
+              <span>An error occurred. Please try again.</span>
+            </div>
+          ),
+          variant: "destructive",
+        });
+      });
+
+    fetchExpenses();
   };
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Expense Tracker</h1>
+      <h1 className="text-3xl font-bold mb-8">Dhruwang's Expense Tracker</h1>
 
       <Tabs defaultValue="overview" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
@@ -314,6 +472,14 @@ export default function Home() {
               <CardTitle>Category Management</CardTitle>
               <CardDescription>
                 Add, edit, or delete expense categories
+                <br />
+                <div className="flex items-center mt-1 gap-1">
+                  <CircleAlert className="h-4 w-4 text-red-500" />
+                  <span className="text-xs text-red-500">
+                    Note: Deleting a category will also delete all associated
+                    expenses.
+                  </span>
+                </div>
               </CardDescription>
             </CardHeader>
             <CardContent>

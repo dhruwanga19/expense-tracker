@@ -223,14 +223,42 @@ func deleteCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := categoriesCollection.DeleteOne(ctx, bson.M{"_id": id})
+	// Start a MongoDB session
+	session, err := client.StartSession()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer session.EndSession(ctx)
+
+	// Start a transaction
+	err = session.StartTransaction()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if result.DeletedCount == 0 {
-		http.Error(w, "Category not found", http.StatusNotFound)
+	// Define a callback that executes the delete operations
+	callback := func(sessCtx mongo.SessionContext) (interface{}, error) {
+		// Delete the category
+		_, err := categoriesCollection.DeleteOne(sessCtx, bson.M{"_id": id})
+		if err != nil {
+			return nil, err
+		}
+
+		// Delete all expenses associated with this category
+		_, err = expensesCollection.DeleteMany(sessCtx, bson.M{"categoryId": id})
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, nil
+	}
+
+	// Execute the transaction
+	_, err = session.WithTransaction(ctx, callback)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 

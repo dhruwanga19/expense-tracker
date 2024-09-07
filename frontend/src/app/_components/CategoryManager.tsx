@@ -2,7 +2,13 @@ import React, { useState } from "react";
 import { Category } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PlusCircle, Pencil, Trash2 } from "lucide-react";
+import {
+  PlusCircle,
+  Pencil,
+  Trash2,
+  CircleCheck,
+  CircleAlert,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -12,9 +18,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { EditCategoryDialog } from "./EditCategoryDialog";
-import { toast } from "@/hooks/use-toast";
+import { useToast } from "@/components/hooks/use-toast";
 
 interface CategoryManagerProps {
   categories: Category[];
@@ -29,6 +34,7 @@ export function CategoryManager({
   onUpdateCategory,
   onDeleteCategory,
 }: CategoryManagerProps) {
+  const { toast } = useToast();
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryColor, setNewCategoryColor] = useState("#000000");
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -44,10 +50,16 @@ export function CategoryManager({
       ) {
         toast({
           title: "Error",
-          description: "A category with this name already exists.",
+          description: (
+            <div className="flex items-center gap-2">
+              <CircleAlert className="h-4 w-4 text-white" />
+              <span>
+                A Category with this name exists. Add a distinct name.
+              </span>
+            </div>
+          ),
           variant: "destructive",
         });
-        return;
       }
 
       // Check if the color already exists
@@ -58,27 +70,52 @@ export function CategoryManager({
       ) {
         toast({
           title: "Error",
-          description: "A category with this color already exists.",
+          description: (
+            <div className="flex items-center gap-2">
+              <CircleAlert className="h-4 w-4 text-white" />
+              <span>
+                A Category with same color exists. Choose a distinct color.
+              </span>
+            </div>
+          ),
           variant: "destructive",
         });
         return;
       }
 
-      try {
-        await onAddCategory(newCategoryName.trim(), newCategoryColor);
-        setNewCategoryName("");
-        setNewCategoryColor("#000000");
-        toast({
-          title: "Success",
-          description: "Category added successfully.",
+      await onAddCategory(newCategoryName.trim(), newCategoryColor)
+        .then(() => {
+          toast({
+            title: "Success",
+            description: (
+              <div className="flex items-center gap-2">
+                <CircleCheck className="h-4 w-4 text-green-500" />
+                <span>
+                  Category <strong>{newCategoryName}</strong> added
+                  successfully.
+                </span>
+              </div>
+            ),
+            variant: "default",
+          });
+        })
+        .catch((error) => {
+          toast({
+            title: "Error",
+            description: (
+              <div className="flex items-center gap-2">
+                <CircleAlert className="h-4 w-4 text-white" />
+                <span>
+                  `Failed to add category. Please try again. ${error}`
+                </span>
+              </div>
+            ),
+            variant: "destructive",
+          });
         });
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to add category. Please try again.",
-          variant: "destructive",
-        });
-      }
+
+      setNewCategoryName("");
+      setNewCategoryColor("#000000");
     }
   };
 
@@ -127,7 +164,8 @@ export function CategoryManager({
                     </DialogTitle>
                     <DialogDescription>
                       This action cannot be undone. This will permanently delete
-                      the category and remove it from our servers.
+                      the category and all its related expenses from our
+                      servers.
                     </DialogDescription>
                   </DialogHeader>
                   <DialogFooter>
