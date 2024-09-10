@@ -16,3 +16,19 @@ export interface Expense {
     name: string;
     color: string;
   }
+
+  interface AnalysisResults {
+    extractedText: string;
+    total: number;
+  }
+  
+  export interface Bill {
+    _id: string;
+    fileName: string;
+    fileType: string;
+    uploadDate: string;
+    processedDate: string;
+    status: string;
+    analysisResults: AnalysisResults;
+    generatedExpenses: Expense[];
+  }

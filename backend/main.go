@@ -7,6 +7,7 @@ import (
 	"github.com/dhruwanga19/expense-tracker/config"
 	"github.com/dhruwanga19/expense-tracker/handlers"
 	"github.com/dhruwanga19/expense-tracker/middleware"
+	"github.com/dhruwanga19/expense-tracker/services"
 	"github.com/dhruwanga19/expense-tracker/utils"
 
 	"github.com/gorilla/mux"
@@ -29,10 +30,16 @@ func main() {
 	// Initialize router
 	r := mux.NewRouter()
 
+	// Initialize bill service
+	billService, err := services.NewBillService(db)
+	if err != nil {
+		log.Fatal("Error initializing bill service:", err)
+	}
+
 	// Set up routes
 	handlers.SetupExpenseRoutes(r, db)
 	handlers.SetupCategoryRoutes(r, db)
-	// handlers.SetupBillRoutes(r, db)
+	handlers.SetupBillRoutes(r, billService)
 
 	// Apply middleware
 	corsRouter := middleware.CORS(r)

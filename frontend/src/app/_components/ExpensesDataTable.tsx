@@ -62,12 +62,19 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { AddExpenseForm } from "./AddExpenseForm";
 
 interface ExpensesDataTableProps {
   expenses: Expense[];
   categories: Category[];
   onUpdateExpense: (updatedExpense: Expense) => void;
   onDeleteExpenses: (expenseIds: string[]) => void;
+  onAddExpense: (values: {
+    name: string;
+    amount: string;
+    date: Date;
+    categoryId: string;
+  }) => Promise<void>;
 }
 
 export function ExpensesDataTable({
@@ -75,6 +82,7 @@ export function ExpensesDataTable({
   categories,
   onUpdateExpense,
   onDeleteExpenses,
+  onAddExpense,
 }: ExpensesDataTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -296,6 +304,8 @@ export function ExpensesDataTable({
 
   return (
     <div className="w-full">
+      <AddExpenseForm categories={categories} onAddExpense={onAddExpense} />
+
       <div className="flex items-center py-4">
         <Input
           placeholder="Filter expenses..."

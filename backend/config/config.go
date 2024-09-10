@@ -7,8 +7,9 @@ import (
 )
 
 type Config struct {
-	MongoURI string
-	Port     string
+	MongoURI             string
+	Port                 string
+	HUGGING_FACE_API_KEY string
 }
 
 func Load() (*Config, error) {
@@ -18,7 +19,8 @@ func Load() (*Config, error) {
 	}
 
 	return &Config{
-		MongoURI: os.Getenv("MONGODB_CONN_URI"),
-		Port:     os.Getenv("PORT"),
+		MongoURI:             os.Getenv("MONGODB_CONN_URI"),
+		Port:                 os.Getenv("PORT"),
+		HUGGING_FACE_API_KEY: os.Getenv("HUGGING_FACE_API_KEY"),
 	}, nil
 }

@@ -40,3 +40,23 @@ export const addCategory = async (category: Omit<Category, '_id'>): Promise<Cate
   export const deleteExpenses = async (expenseIds: string[]): Promise<void> => {
     await axios.post(`${API_URL}/expenses/delete`, { ids: expenseIds });
   };
+
+  // Bill Processing API
+
+export const uploadBill = async (formData: FormData): Promise<any> => {
+  const response = await axios.post(`${API_URL}/bills`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
+export const getBillDetails = async (billId: string): Promise<any> => {
+  const response = await axios.get(`${API_URL}/bills/${billId}`);
+  return response.data;
+};
+
+export const confirmExpenses = async (billId: string, expenses: Expense[]): Promise<void> => {
+  await axios.post(`${API_URL}/bills/${billId}/confirm`, expenses);
+};
