@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -22,13 +22,21 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { Calendar as CalendarIcon, PlusCircle } from "lucide-react";
+import { Calendar as CalendarIcon, Plus, PlusCircle } from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Category, Expense } from "@/types";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { useToast } from "@/components/hooks/use-toast";
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -51,20 +59,27 @@ interface AddExpenseFormProps {
   categories: Category[];
   onAddExpense: (values: FormSchema) => Promise<void>;
   initialValues?: Expense;
+  onAddCategory: (name: string, color: string) => Promise<void>;
 }
 
 export function AddExpenseForm({
   categories,
   onAddExpense,
   initialValues,
+  onAddCategory,
 }: AddExpenseFormProps) {
+  const { toast } = useToast();
+  const [isAddCategoryDialogOpen, setIsAddCategoryDialogOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryColor, setNewCategoryColor] = useState("#000000");
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: initialValues
       ? {
           name: initialValues.name,
           amount: initialValues.amount.toString(),
-          categoryId: initialValues.categoryId,
+          categoryId: "",
           date: new Date(initialValues.date),
         }
       : {
@@ -79,6 +94,28 @@ export function AddExpenseForm({
     await onAddExpense(values);
     if (!initialValues) {
       form.reset();
+    }
+  };
+
+  const handleAddCategory = async () => {
+    if (newCategoryName.trim() && newCategoryColor) {
+      try {
+        await onAddCategory(newCategoryName.trim(), newCategoryColor);
+        toast({
+          title: "Success",
+          description: "New category added successfully.",
+          variant: "default",
+        });
+        setIsAddCategoryDialogOpen(false);
+        setNewCategoryName("");
+        setNewCategoryColor("#000000");
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to add new category. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -124,6 +161,16 @@ export function AddExpenseForm({
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
+                  {/* <SelectItem value="add-category"> */}
+                  <Button
+                    variant="ghost"
+                    onClick={() => setIsAddCategoryDialogOpen(true)}
+                    className="flex w-full"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Category
+                  </Button>
+                  {/* </SelectItem> */}
                   {categories.map((category) => (
                     <SelectItem key={category._id} value={category._id}>
                       <div className="flex items-center">
@@ -186,6 +233,54 @@ export function AddExpenseForm({
           {initialValues ? "Update" : "Add"} Expense
         </Button>
       </form>
+
+      <Dialog
+        open={isAddCategoryDialogOpen}
+        onOpenChange={setIsAddCategoryDialogOpen}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Category</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <FormLabel htmlFor="name" className="text-right">
+                Name
+              </FormLabel>
+              <Input
+                id="name"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <FormLabel htmlFor="color" className="text-right">
+                Color
+              </FormLabel>
+              <div className="col-span-3 flex items-center gap-2">
+                <Input
+                  type="color"
+                  id="color"
+                  value={newCategoryColor}
+                  onChange={(e) => setNewCategoryColor(e.target.value)}
+                  className="w-12 p-1"
+                />
+                <Input
+                  value={newCategoryColor}
+                  onChange={(e) => setNewCategoryColor(e.target.value)}
+                  placeholder="#000000"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="submit" onClick={handleAddCategory}>
+              Add Category
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Form>
   );
 }

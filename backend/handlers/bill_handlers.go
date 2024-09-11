@@ -14,7 +14,7 @@ import (
 func SetupBillRoutes(r *mux.Router, billService *services.BillService) {
 	r.HandleFunc("/api/bills", uploadBillHandler(billService)).Methods("POST")
 	r.HandleFunc("/api/bills/{id}", getBillHandler(billService)).Methods("GET")
-	// r.HandleFunc("/api/bills/{id}/process", processBillHandler(billService)).Methods("POST")
+	r.HandleFunc("/api/bills/{id}/expenses/{expenseId}", updateBillExpenseHandler(billService)).Methods("PUT")
 	r.HandleFunc("/api/bills/{id}/confirm", confirmExpensesHandler(billService)).Methods("POST")
 }
 
@@ -87,34 +87,7 @@ func getBillHandler(s *services.BillService) http.HandlerFunc {
 	}
 }
 
-// func processBillHandler(s *services.BillService) http.HandlerFunc {
-// 	return func(w http.ResponseWriter, r *http.Request) {
-// 		params := mux.Vars(r)
-// 		id, err := primitive.ObjectIDFromHex(params["id"])
-// 		if err != nil {
-// 			http.Error(w, "Invalid bill ID", http.StatusBadRequest)
-// 			return
-// 		}
-
-// 		// For this handler, we assume the file is being re-uploaded for processing
-// 		file, _, err := r.FormFile("bill")
-// 		if err != nil {
-// 			http.Error(w, "No file uploaded", http.StatusBadRequest)
-// 			return
-// 		}
-// 		defer file.Close()
-
-// 		err = s.ProcessBill(r.Context(), id, file)
-// 		if err != nil {
-// 			http.Error(w, err.Error(), http.StatusInternalServerError)
-// 			return
-// 		}
-
-// 		w.WriteHeader(http.StatusOK)
-// 	}
-// }
-
-func confirmExpensesHandler(s *services.BillService) http.HandlerFunc {
+func updateBillExpenseHandler(s *services.BillService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		params := mux.Vars(r)
 		billID, err := primitive.ObjectIDFromHex(params["id"])
@@ -122,20 +95,56 @@ func confirmExpensesHandler(s *services.BillService) http.HandlerFunc {
 			http.Error(w, "Invalid bill ID", http.StatusBadRequest)
 			return
 		}
+		expenseID, err := primitive.ObjectIDFromHex(params["expenseId"])
+		if err != nil {
+			http.Error(w, "Invalid expense ID", http.StatusBadRequest)
+			return
+		}
 
-		var confirmedExpenses []models.Expense
-		err = json.NewDecoder(r.Body).Decode(&confirmedExpenses)
+		var updatedExpense models.Expense
+		err = json.NewDecoder(r.Body).Decode(&updatedExpense)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		err = s.ConfirmExpenses(r.Context(), billID, confirmedExpenses)
+		err = s.UpdateBillExpense(r.Context(), billID, expenseID, &updatedExpense)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func confirmExpensesHandler(s *services.BillService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Println("Received expense confirmation request")
+		params := mux.Vars(r)
+		billID, err := primitive.ObjectIDFromHex(params["id"])
+		if err != nil {
+			log.Println("Invalid bill ID:", err)
+			http.Error(w, "Invalid bill ID", http.StatusBadRequest)
+			return
+		}
+
+		var expenses []models.Expense
+		err = json.NewDecoder(r.Body).Decode(&expenses)
+		if err != nil {
+			log.Printf("Error decoding expenses: %v", err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		err = s.ConfirmExpenses(r.Context(), billID, expenses)
+		if err != nil {
+			log.Println("Error confirming expenses:", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Expenses confirmed successfully"})
 	}
 }

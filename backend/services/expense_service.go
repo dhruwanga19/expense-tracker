@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"log"
 
 	"github.com/dhruwanga19/expense-tracker/models"
 
@@ -57,6 +58,7 @@ func (s *ExpenseService) UpdateExpense(ctx context.Context, updatedExpense *mode
 
 	result, err := s.collection.UpdateOne(ctx, filter, update)
 	if result.ModifiedCount == 0 {
+		log.Println("No documents updated / Did not find the document to update")
 		return mongo.ErrNoDocuments
 	}
 
@@ -67,6 +69,7 @@ func (s *ExpenseService) DeleteExpenses(ctx context.Context, filter primitive.M)
 	// Implementation for deleting expenses
 	result, err := s.collection.DeleteMany(ctx, filter)
 	if err != nil {
+		log.Println("Error deleting expenses:", err)
 		return 0, err
 	}
 	return result.DeletedCount, nil

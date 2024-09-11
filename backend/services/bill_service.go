@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -84,11 +85,15 @@ func (s *BillService) ProcessBill(ctx context.Context, billID primitive.ObjectID
 	// Parse OCR results
 	expenses, total := s.parseOCRResult(extractedText)
 	log.Printf("Parsed %d expenses, total amount: %f", len(expenses), total)
+	for _, expense := range expenses {
+		log.Printf("Expense: %s, Price: %f", expense.name, expense.price)
+	}
 
 	// Convert expenses to the format we want to store in the database
 	generatedExpenses := make([]models.Expense, len(expenses))
 	for i, expense := range expenses {
 		generatedExpenses[i] = models.Expense{
+			ID:     primitive.NewObjectID(),
 			Name:   expense.name,
 			Amount: expense.price,
 			Date:   time.Now(),
@@ -134,27 +139,38 @@ func (s *BillService) parseOCRResult(text string) ([]struct {
 		price float64
 	}
 	var total float64 = 0
+	var currentExpense struct {
+		name  string
+		price float64
+	}
 
-	midpoint := len(lines) / 2
-	prices := lines[midpoint:]
-	allItems := lines[:midpoint]
+	// Regular expressions for matching expense names and prices
+	nameRegex := regexp.MustCompile(`^[A-Za-z][A-Za-z0-9\s/]+`)
+	priceRegex := regexp.MustCompile(`^(\$)?(\d+\.\d{2})([\s\S]*)?$`)
 
-	for i, item := range allItems {
-		item = strings.TrimSpace(item)
-		if item == "" {
-			continue
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+
+		if nameRegex.MatchString(line) {
+
+			// If we have a previous expense with a price, add it to the list
+			if currentExpense.name != "" && currentExpense.price != 0 {
+				items = append(items, currentExpense)
+				total += currentExpense.price
+			}
+			currentExpense.name = line
+		} else if priceMatch := priceRegex.FindStringSubmatch(line); priceMatch != nil {
+			price, err := strconv.ParseFloat(priceMatch[2], 64)
+			if err == nil && currentExpense.name != "" {
+				currentExpense.price = price
+			}
 		}
+	}
 
-		price, err := strconv.ParseFloat(prices[i], 64)
-		if err == nil {
-			items = append(items, struct {
-				name  string
-				price float64
-			}{item, price})
-
-		} else {
-			total, _ = strconv.ParseFloat(strings.TrimPrefix(prices[i], "$"), 64)
-		}
+	// Add the last expense if it exists
+	if currentExpense.name != "" && currentExpense.price != 0 {
+		items = append(items, currentExpense)
+		total += currentExpense.price
 	}
 
 	return items, total
@@ -171,10 +187,28 @@ func (s *BillService) GetBill(ctx context.Context, billID primitive.ObjectID) (*
 	return &bill, nil
 }
 
-func (s *BillService) ConfirmExpenses(ctx context.Context, billID primitive.ObjectID, confirmedExpenses []models.Expense) error {
-	log.Printf("Confirming expenses for bill ID: %s", billID.Hex())
+func (s *BillService) UpdateBillExpense(ctx context.Context, billID, expenseID primitive.ObjectID, updatedExpense *models.Expense) error {
 
-	// Start a session for the transaction
+	filter := bson.M{"_id": billID, "generated_expenses._id": expenseID}
+	update := bson.M{
+		"$set": bson.M{
+			"generated_expenses.$": updatedExpense,
+		},
+	}
+
+	result, err := s.billsCollection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	}
+
+	if result.ModifiedCount == 0 {
+		return fmt.Errorf("no expense found with id %s in bill %s", expenseID.Hex(), billID.Hex())
+	}
+
+	return nil
+}
+
+func (s *BillService) ConfirmExpenses(ctx context.Context, billID primitive.ObjectID, expenses []models.Expense) error {
 	session, err := s.billsCollection.Database().Client().StartSession()
 	if err != nil {
 		log.Printf("Error starting session: %v", err)
@@ -182,35 +216,57 @@ func (s *BillService) ConfirmExpenses(ctx context.Context, billID primitive.Obje
 	}
 	defer session.EndSession(ctx)
 
-	// Start a transaction
-	err = session.StartTransaction()
-	if err != nil {
-		return err
-	}
-
-	// Use WithTransaction to handle commit and abort
 	_, err = session.WithTransaction(ctx, func(sessCtx mongo.SessionContext) (interface{}, error) {
-		// Update the bill with confirmed expenses
-		_, err := s.billsCollection.UpdateOne(
-			sessCtx,
-			bson.M{"_id": billID},
-			bson.M{"$set": bson.M{"generated_expenses": confirmedExpenses}},
-		)
+		// Get the bill
+		var bill models.Bill
+		err := s.billsCollection.FindOne(sessCtx, bson.M{"_id": billID}).Decode(&bill)
 		if err != nil {
+			log.Printf("Error finding bill: %v", err)
 			return nil, err
 		}
 
-		// Add confirmed expenses to the expenses collection
-		for _, expense := range confirmedExpenses {
-			expense.ID = primitive.NewObjectID()
-			_, err := s.expensesCollection.InsertOne(sessCtx, expense)
+		// Validate and process expenses
+		for i, expense := range expenses {
+			if expense.CategoryID == primitive.NilObjectID {
+				return nil, fmt.Errorf("expense %d is missing a category", i+1)
+			}
+
+			if expense.ID.IsZero() {
+				// This is a new expense, generate a new ID
+				expenses[i].ID = primitive.NewObjectID()
+			}
+
+			_, err := s.expensesCollection.InsertOne(sessCtx, expenses[i])
 			if err != nil {
+				log.Printf("Error inserting expense: %v", err)
 				return nil, err
 			}
+		}
+
+		// Update the bill with confirmed expenses and status
+		_, err = s.billsCollection.UpdateOne(
+			sessCtx,
+			bson.M{"_id": billID},
+			bson.M{
+				"$set": bson.M{
+					"status":             "confirmed",
+					"generated_expenses": expenses,
+				},
+			},
+		)
+		if err != nil {
+			log.Printf("Error updating bill status: %v", err)
+			return nil, err
 		}
 
 		return nil, nil
 	})
 
-	return err
+	if err != nil {
+		log.Printf("Transaction failed: %v", err)
+		return fmt.Errorf("failed to confirm expenses: %v", err)
+	}
+
+	log.Println("Expenses confirmed successfully")
+	return nil
 }

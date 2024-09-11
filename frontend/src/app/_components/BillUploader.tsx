@@ -18,12 +18,19 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Loader2, CircleCheck, CircleAlert } from "lucide-react";
+import {
+  Loader2,
+  CircleCheck,
+  CircleAlert,
+  PlusCircle,
+  SeparatorHorizontal,
+} from "lucide-react";
 import { AddExpenseForm } from "./AddExpenseForm";
 import { Category, Expense } from "@/types";
 import { useToast } from "@/components/hooks/use-toast";
 import * as z from "zod";
 import { Bill } from "@/types";
+import { on } from "events";
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -45,13 +52,15 @@ type FormSchema = z.infer<typeof formSchema>;
 interface BillUploaderProps {
   categories: Category[];
   onAddExpense: (values: FormSchema) => Promise<void>;
-  onUpdateExpense: (expense: Expense) => Promise<void>;
+  onUpdateBillExpense: (billId: string, expense: Expense) => Promise<void>;
+  onAddCategory: (name: string, color: string) => Promise<void>;
 }
 
 export function BillUploader({
   categories,
   onAddExpense,
-  onUpdateExpense,
+  onUpdateBillExpense,
+  onAddCategory,
 }: BillUploaderProps) {
   const { toast } = useToast();
   const [file, setFile] = useState<File | null>(null);
@@ -62,6 +71,7 @@ export function BillUploader({
   const [processing, setProcessing] = useState(false);
   const [billDetails, setBillDetails] = useState<Bill | null>(null);
   const [editedExpenses, setEditedExpenses] = useState<Expense[]>([]);
+  const [newExpenses, setNewExpenses] = useState<Expense[]>([]);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [billId, setBillId] = useState<string | null>(null);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -192,44 +202,56 @@ export function BillUploader({
     }
   };
 
-  const handleAddExpense = async (values: FormSchema) => {
-    try {
-      await onAddExpense(values);
-      const newExpense: Expense = {
-        _id: "", // This will be set by the backend
-        name: values.name,
-        amount: Number(values.amount),
-        categoryId: values.categoryId,
-        date: values.date,
-      };
-      setEditedExpenses([...editedExpenses, newExpense]);
-      toast({
-        title: "Success",
-        description: (
-          <div className="flex items-center gap-2">
-            <CircleCheck className="h-4 w-4 text-green-500" />
-            <span>New expense has been added successfully.</span>
-          </div>
-        ),
-        variant: "default",
+  const handleAddMoreExpenses = () => {
+    const newExpense: Expense = {
+      _id: "", // This will be set by the backend
+      name: "",
+      amount: 0,
+      categoryId: "",
+      date: new Date(),
+    };
+    setNewExpenses([...newExpenses, newExpense]);
+  };
+
+  const handleUpdateNewExpense = async (
+    index: number,
+    values: z.infer<typeof formSchema>
+  ): Promise<void> => {
+    return new Promise<void>((resolve) => {
+      setNewExpenses((prevExpenses) => {
+        const updatedExpenses = [...prevExpenses];
+        updatedExpenses[index] = {
+          ...updatedExpenses[index],
+          name: values.name,
+          amount: Number(values.amount),
+          categoryId: values.categoryId,
+          date: values.date,
+        };
+        return updatedExpenses;
       });
-    } catch (error) {
+      resolve();
+    });
+  };
+
+  const handleRemoveNewExpense = (index: number) => {
+    const updatedNewExpenses = newExpenses.filter((_, i) => i !== index);
+    setNewExpenses(updatedNewExpenses);
+  };
+
+  const handleUpdateBillExpense = async (index: number, values: FormSchema) => {
+    if (!billId) {
       toast({
         title: "Error",
         description: (
           <div className="flex items-center gap-2">
             <CircleAlert className="h-4 w-4 text-white" />
-            <span>
-              An error occurred while adding the expense. Please try again.
-            </span>
+            <span>Unable to update expense: No active bill.</span>
           </div>
         ),
         variant: "destructive",
       });
+      return;
     }
-  };
-
-  const handleUpdateExpense = async (index: number, values: FormSchema) => {
     try {
       const updatedExpense: Expense = {
         ...editedExpenses[index],
@@ -238,7 +260,7 @@ export function BillUploader({
         categoryId: values.categoryId,
         date: values.date,
       };
-      await onUpdateExpense(updatedExpense);
+      await onUpdateBillExpense(billId, updatedExpense);
       const updatedExpenses = [...editedExpenses];
       updatedExpenses[index] = updatedExpense;
       setEditedExpenses(updatedExpenses);
@@ -273,11 +295,42 @@ export function BillUploader({
     setEditedExpenses(updatedExpenses);
   };
 
+  const validateExpenses = (expenses: Expense[]): boolean => {
+    return expenses.every(
+      (expense) =>
+        expense.categoryId && expense.categoryId !== "000000000000000000000000"
+    );
+  };
+
   const handleConfirmExpenses = async () => {
     if (!billId) return;
 
+    const expensesToConfirm = [
+      ...editedExpenses,
+      ...newExpenses.map((expense) => ({
+        ...expense,
+        isNew: true, // Flag to indicate this is a new expense
+      })),
+    ];
+
+    if (!validateExpenses(expensesToConfirm)) {
+      toast({
+        title: "Error",
+        description: (
+          <div className="flex items-center gap-2">
+            <CircleAlert className="h-4 w-4 text-white" />
+            <span>
+              Please select a category for all expenses before confirming.
+            </span>
+          </div>
+        ),
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      await confirmExpenses(billId, editedExpenses);
+      await confirmExpenses(billId, expensesToConfirm);
       toast({
         title: "Success",
         description: (
@@ -288,6 +341,9 @@ export function BillUploader({
         ),
         variant: "default",
       });
+      setBillDetails(null);
+      setEditedExpenses([]);
+      setBillId(null);
     } catch (error) {
       console.error("Error confirming expenses:", error);
       toast({
@@ -306,7 +362,14 @@ export function BillUploader({
   };
   return (
     <div className="space-y-4">
-      <Input type="file" onChange={handleFileChange} accept="image/*,.pdf" />
+      <div className="flex items-center justify-between max-w-screen-sm">
+        <Input
+          type="file"
+          onChange={handleFileChange}
+          accept="image/*,.pdf"
+          className="bg-stone-300 rounded-lg "
+        />
+      </div>
 
       <Dialog open={cropDialogOpen} onOpenChange={setCropDialogOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -356,6 +419,10 @@ export function BillUploader({
 
       {billDetails && (
         <div>
+          <span className="text-gray-400 text-sm">
+            Note: The Detected Expenses might not be 100% accurate, feel free to
+            add or edit your expenses and hit the "Update".
+          </span>
           <h3 className="text-lg font-semibold">Processed Bill Details:</h3>
           <p>Total Amount: ${billDetails.analysisResults.total.toFixed(2)}</p>
           <h4 className="text-md font-semibold mt-2">Extracted Text:</h4>
@@ -367,8 +434,11 @@ export function BillUploader({
             <div key={index} className="mt-4">
               <AddExpenseForm
                 categories={categories}
-                onAddExpense={(values) => handleUpdateExpense(index, values)}
+                onAddExpense={(values) =>
+                  handleUpdateBillExpense(index, values)
+                }
                 initialValues={expense}
+                onAddCategory={onAddCategory}
               />
               <Button
                 onClick={() => handleRemoveExpense(index)}
@@ -378,11 +448,32 @@ export function BillUploader({
               </Button>
             </div>
           ))}
-          <AddExpenseForm
-            categories={categories}
-            onAddExpense={handleAddExpense}
-          />
-          <Button onClick={handleConfirmExpenses} className="mt-4">
+
+          {newExpenses.map((expense, index) => (
+            <div key={index} className="mt-4">
+              <h4 className="text-md font-semibold mt-4">
+                Additional Expenses:
+              </h4>
+
+              <AddExpenseForm
+                categories={categories}
+                onAddExpense={(values) => handleUpdateNewExpense(index, values)}
+                initialValues={expense}
+                onAddCategory={onAddCategory}
+              />
+              <Button
+                onClick={() => handleRemoveNewExpense(index)}
+                className="mt-2"
+              >
+                Remove Expense
+              </Button>
+            </div>
+          ))}
+
+          <Button onClick={handleAddMoreExpenses} className="mt-4">
+            <PlusCircle className="mr-2 h-4 w-4" /> Add More Expenses
+          </Button>
+          <Button onClick={handleConfirmExpenses} className="mt-4 ml-4">
             Confirm Expenses
           </Button>
         </div>

@@ -75,6 +75,7 @@ interface ExpensesDataTableProps {
     date: Date;
     categoryId: string;
   }) => Promise<void>;
+  onAddCategory: (name: string, color: string) => Promise<void>;
 }
 
 export function ExpensesDataTable({
@@ -83,6 +84,7 @@ export function ExpensesDataTable({
   onUpdateExpense,
   onDeleteExpenses,
   onAddExpense,
+  onAddCategory,
 }: ExpensesDataTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -304,8 +306,13 @@ export function ExpensesDataTable({
 
   return (
     <div className="w-full">
-      <AddExpenseForm categories={categories} onAddExpense={onAddExpense} />
-
+      <h4 className="font-semibold mb-2">Add Expenses</h4>
+      <AddExpenseForm
+        categories={categories}
+        onAddExpense={onAddExpense}
+        onAddCategory={onAddCategory}
+      />
+      <h4 className="font-semibold mt-5">View Expenses</h4>
       <div className="flex items-center py-4">
         <Input
           placeholder="Filter expenses..."

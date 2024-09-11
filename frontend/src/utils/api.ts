@@ -60,3 +60,7 @@ export const getBillDetails = async (billId: string): Promise<any> => {
 export const confirmExpenses = async (billId: string, expenses: Expense[]): Promise<void> => {
   await axios.post(`${API_URL}/bills/${billId}/confirm`, expenses);
 };
+
+export const updateBillExpense = async (billId: string, expense: Expense): Promise<void> => {
+  await axios.put(`${API_URL}/bills/${billId}/expenses/${expense._id}`, expense);
+};

@@ -10,6 +10,7 @@ import {
   updateExpense,
   updateCategory,
   deleteExpenses,
+  updateBillExpense,
 } from "@/utils/api";
 import * as z from "zod";
 
@@ -256,6 +257,37 @@ export default function Home() {
     fetchExpenses();
   };
 
+  const handleUpdateBillExpense = async (billId: string, expense: Expense) => {
+    try {
+      await updateBillExpense(billId, expense);
+      toast({
+        title: "Success",
+        description: (
+          <div className="flex items-center gap-2">
+            <CircleCheck className="h-4 w-4 text-green-500" />
+            <span>Bill expense has been updated successfully.</span>
+          </div>
+        ),
+        variant: "default",
+      });
+    } catch (error) {
+      console.error("Error updating bill expense:", error);
+      toast({
+        title: "Error",
+        description: (
+          <div className="flex items-center gap-2">
+            <CircleAlert className="h-4 w-4 text-white" />
+            <span>
+              An error occurred while updating the bill expense. Please try
+              again.
+            </span>
+          </div>
+        ),
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Dhruwang's Expense Tracker</h1>
@@ -283,8 +315,8 @@ export default function Home() {
         <TabsContent value="manage-expenses">
           <Card>
             <CardHeader>
-              <CardTitle>Manage Your Expenses</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-xl">Manage Your Expenses</CardTitle>
+              <CardDescription className="text-md">
                 Add, edit or delete your expenses
               </CardDescription>
             </CardHeader>
@@ -296,6 +328,7 @@ export default function Home() {
                 onUpdateExpense={handleUpdateExpense}
                 onDeleteExpenses={handleDeleteExpenses}
                 onAddExpense={handleAddExpense}
+                onAddCategory={handleAddCategory}
               />
             </CardContent>
           </Card>
@@ -340,7 +373,8 @@ export default function Home() {
               <BillUploader
                 categories={categories}
                 onAddExpense={handleAddExpense}
-                onUpdateExpense={handleUpdateExpense}
+                onUpdateBillExpense={handleUpdateBillExpense}
+                onAddCategory={handleAddCategory}
               />
             </CardContent>
           </Card>
