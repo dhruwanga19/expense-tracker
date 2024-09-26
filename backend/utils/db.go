@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"log"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -13,6 +14,7 @@ func ConnectDB(uri string) (*mongo.Database, error) {
 		return nil, err
 	}
 
+	log.Println("Connected to MongoDB")
 	return client.Database("expenses"), nil
 }
 

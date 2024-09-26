@@ -161,7 +161,6 @@ export function AddExpenseForm({
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {/* <SelectItem value="add-category"> */}
                   <Button
                     variant="ghost"
                     onClick={() => setIsAddCategoryDialogOpen(true)}
@@ -170,7 +169,7 @@ export function AddExpenseForm({
                     <Plus className="mr-2 h-4 w-4" />
                     Add Category
                   </Button>
-                  {/* </SelectItem> */}
+
                   {categories.map((category) => (
                     <SelectItem key={category._id} value={category._id}>
                       <div className="flex items-center">

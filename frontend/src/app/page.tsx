@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Expense, Category } from "@/types";
+import { Expense, Category, BudgetGoal } from "@/types";
 import {
   getExpenses,
   addExpense,
@@ -11,6 +11,9 @@ import {
   updateCategory,
   deleteExpenses,
   updateBillExpense,
+  getBudgetGoals,
+  updateBudgetGoal,
+  deleteBudgetGoal,
 } from "@/utils/api";
 import * as z from "zod";
 
@@ -30,6 +33,7 @@ import { ExpensesDataTable } from "./_components/ExpensesDataTable";
 import Overview from "./_components/Overview";
 import { useToast } from "@/components/hooks/use-toast";
 import { BillUploader } from "./_components/BillUploader";
+import { BudgetGoalSetting } from "./_components/BudgetGoalSetting";
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -50,20 +54,87 @@ export default function Home() {
   const { toast } = useToast();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [budgetGoals, setBudgetGoals] = useState<BudgetGoal[]>([]);
 
   useEffect(() => {
     fetchExpenses();
     fetchCategories();
+    fetchBudgetGoals();
   }, []);
 
   const fetchExpenses = async () => {
-    const expensesData = await getExpenses();
-    setExpenses(expensesData);
+    try {
+      const expensesData = await getExpenses();
+      setExpenses(expensesData);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch expenses.",
+        variant: "destructive",
+      });
+    }
   };
 
   const fetchCategories = async () => {
-    const categoriesData = await getCategories();
-    setCategories(categoriesData);
+    try {
+      const categoriesData = await getCategories();
+      setCategories(categoriesData);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch categories.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const fetchBudgetGoals = async () => {
+    try {
+      const goalsData = await getBudgetGoals();
+      setBudgetGoals(goalsData);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch budget goals.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteBudgetGoal = async (id: string) => {
+    try {
+      await deleteBudgetGoal(id);
+      fetchBudgetGoals();
+      toast({
+        title: "Success",
+        description: "Budget goal deleted successfully.",
+        variant: "default",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete budget goal.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUpdateBudgetGoal = async (updatedGoal: BudgetGoal) => {
+    try {
+      await updateBudgetGoal(updatedGoal);
+      fetchBudgetGoals();
+      toast({
+        title: "Success",
+        description: "Budget goal updated successfully.",
+        variant: "default",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update budget goal.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleAddExpense = async (values: z.infer<typeof formSchema>) => {
@@ -288,15 +359,20 @@ export default function Home() {
     }
   };
 
+  console.log("Expenses:", expenses);
+  console.log("Categories:", categories);
+  console.log("Budget Goals:", budgetGoals);
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Dhruwang's Expense Tracker</h1>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="manage-expenses">Manage Expenses</TabsTrigger>
           <TabsTrigger value="categories">Categories</TabsTrigger>
+          <TabsTrigger value="budget-goals">Budget Goals</TabsTrigger>
           <TabsTrigger value="upload-bill">Bill</TabsTrigger>
         </TabsList>
 
@@ -307,7 +383,11 @@ export default function Home() {
               <CardDescription>Overview of your expenses</CardDescription>
             </CardHeader>
             <CardContent>
-              <Overview expenses={expenses} categories={categories} />
+              <Overview
+                expenses={expenses}
+                categories={categories}
+                budgetGoals={budgetGoals}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -377,6 +457,24 @@ export default function Home() {
                 onAddCategory={handleAddCategory}
               />
             </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="budget-goals">
+          <Card>
+            <CardHeader>
+              <CardTitle>Budget Goals</CardTitle>
+              <CardDescription>
+                Set budget goals for your categories of expenses
+              </CardDescription>
+            </CardHeader>
+            <BudgetGoalSetting
+              categories={categories}
+              budgetGoals={budgetGoals}
+              onBudgetGoalAdded={fetchBudgetGoals}
+              onBudgetGoalUpdated={fetchBudgetGoals}
+              onBudgetGoalDeleted={fetchBudgetGoals}
+              onCategoryAdded={fetchCategories}
+            />
           </Card>
         </TabsContent>
       </Tabs>

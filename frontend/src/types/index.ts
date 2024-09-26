@@ -32,3 +32,10 @@ export interface Expense {
     analysisResults: AnalysisResults;
     generatedExpenses: Expense[];
   }
+
+  export interface BudgetGoal {
+    _id: string;
+    categoryId: string;
+    amount: number;
+    period: "weekly" | "monthly";
+  }

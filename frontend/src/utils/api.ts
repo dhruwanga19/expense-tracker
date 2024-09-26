@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Expense, Category } from '@/types';
+import { Expense, Category, BudgetGoal } from '@/types';
 
 const API_URL = 'http://localhost:8080/api';
 
@@ -63,4 +63,23 @@ export const confirmExpenses = async (billId: string, expenses: Expense[]): Prom
 
 export const updateBillExpense = async (billId: string, expense: Expense): Promise<void> => {
   await axios.put(`${API_URL}/bills/${billId}/expenses/${expense._id}`, expense);
+};
+
+export const getBudgetGoals = async (): Promise<BudgetGoal[]> => {
+  const response = await axios.get(`${API_URL}/budget-goals`);
+  return response.data;
+};
+
+export const addBudgetGoal = async (goal: Omit<BudgetGoal, '_id'>): Promise<BudgetGoal> => {
+  const response = await axios.post(`${API_URL}/budget-goals`, goal);
+  return response.data;
+};
+
+export const updateBudgetGoal = async (goal: BudgetGoal): Promise<BudgetGoal> => {
+  const response = await axios.put(`${API_URL}/budget-goals/${goal._id}`, goal);
+  return response.data;
+};
+
+export const deleteBudgetGoal = async (id: string): Promise<void> => {
+  await axios.delete(`${API_URL}/budget-goals/${id}`);
 };

@@ -36,10 +36,16 @@ func main() {
 		log.Fatal("Error initializing bill service:", err)
 	}
 
+	budgetGoalSerive := services.NewBudgetGoalService(db)
+	if err != nil {
+		log.Fatal("Error initializing budget goal service:", err)
+	}
+
 	// Set up routes
 	handlers.SetupExpenseRoutes(r, db)
 	handlers.SetupCategoryRoutes(r, db)
 	handlers.SetupBillRoutes(r, billService)
+	handlers.SetupBudgetGoalRoutes(r, budgetGoalSerive)
 
 	// Apply middleware
 	corsRouter := middleware.CORS(r)
