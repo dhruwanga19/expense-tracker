@@ -1,28 +1,8 @@
-import React, { useEffect, useMemo } from "react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  Cell,
-  PieChart,
-  LineChart,
-  Line,
-  Pie,
-} from "recharts";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import React, { useCallback, useMemo } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Expense, Category, BudgetGoal } from "@/types";
 import { BudgetForecast } from "./BudgetForecast";
+import Carousel, { GraphData } from "./GraphCarousel";
 
 interface OverviewProps {
   expenses: Expense[];
@@ -35,38 +15,12 @@ const Overview: React.FC<OverviewProps> = ({
   categories,
   budgetGoals,
 }) => {
-  console.log("Overview - Expenses:", expenses);
-  console.log("Overview - Categories:", categories);
-  console.log("Overview - Budget Goals:", budgetGoals);
-  // Calculate total expenses
-  const totalExpenses = useMemo(() => {
-    return expenses.reduce((total, expense) => total + expense.amount, 0);
-  }, [expenses]);
+  const totalExpenses = useMemo(
+    () => expenses.reduce((total, expense) => total + expense.amount, 0),
+    [expenses]
+  );
 
-  // Get expenses by category
-  const expensesByCategory = useMemo(() => {
-    const categoryMap = new Map<string, { total: number; color: string }>();
-    categories.forEach((category) => {
-      categoryMap.set(category._id, { total: 0, color: category.color });
-    });
-
-    expenses.forEach((expense) => {
-      const categoryData = categoryMap.get(expense.categoryId);
-      if (categoryData) {
-        categoryData.total += expense.amount;
-      }
-    });
-
-    return Array.from(categoryMap, ([id, { total, color }]) => ({
-      id,
-      name: categories.find((c) => c._id === id)?.name || "Unknown",
-      value: total,
-      color,
-    }));
-  }, [expenses, categories]);
-
-  // Get expenses by month
-  const expensesByMonth = useMemo(() => {
+  const getExpensesByMonth = useCallback(() => {
     const monthMap = new Map<string, number>();
     expenses.forEach((expense) => {
       const month = new Date(expense.date).toLocaleString("default", {
@@ -77,10 +31,7 @@ const Overview: React.FC<OverviewProps> = ({
     return Array.from(monthMap, ([name, amount]) => ({ name, amount }));
   }, [expenses]);
 
-  const generateForecastData = useMemo(() => {
-    console.log("Generating forecast data...");
-    console.log("Expenses:", expenses);
-
+  const generateForecastData = useCallback(() => {
     const monthlyTotals = expenses.reduce((acc, expense) => {
       const month = new Date(expense.date).toLocaleString("default", {
         month: "short",
@@ -88,8 +39,6 @@ const Overview: React.FC<OverviewProps> = ({
       acc[month] = (acc[month] || 0) + expense.amount;
       return acc;
     }, {} as Record<string, number>);
-
-    console.log("Monthly totals:", monthlyTotals);
 
     const months = [
       "Jan",
@@ -107,7 +56,7 @@ const Overview: React.FC<OverviewProps> = ({
     ];
     const currentMonth = new Date().getMonth();
 
-    const forecastData = months.map((month, index) => {
+    return months.map((month, index) => {
       const actualAmount = monthlyTotals[month] || 0;
       let forecastAmount;
 
@@ -131,26 +80,56 @@ const Overview: React.FC<OverviewProps> = ({
         forecast: Number(forecastAmount.toFixed(2)),
       };
     });
-
-    console.log("Forecast Data:", forecastData);
-    return forecastData;
   }, [expenses]);
 
-  useEffect(() => {
-    console.log("Component rendered. Forecast data:", generateForecastData);
-  }, [generateForecastData]);
+  const getExpensesByCategory = useCallback(() => {
+    const categoryMap = new Map<string, { total: number; color: string }>();
+    categories.forEach((category) => {
+      categoryMap.set(category._id, { total: 0, color: category.color });
+    });
 
-  if (expenses.length === 0) {
-    return (
-      <Card className="w-full h-[400px] flex items-center justify-center">
-        <CardContent>
-          <p className="text-2xl font-semibold text-gray-500">
-            No expenses added
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
+    expenses.forEach((expense) => {
+      const categoryData = categoryMap.get(expense.categoryId);
+      if (categoryData) {
+        categoryData.total += expense.amount;
+      }
+    });
+
+    return Array.from(categoryMap, ([id, { total, color }]) => ({
+      id,
+      name: categories.find((c) => c._id === id)?.name || "Unknown",
+      value: total,
+      color,
+    }));
+  }, [expenses, categories]);
+
+  const loadGraphData = useCallback(
+    async (type: GraphData["type"]) => {
+      // Simulate API call or data processing
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      switch (type) {
+        case "monthly expense":
+          return getExpensesByMonth();
+        case "expense forecast":
+          return generateForecastData();
+        case "categorical expense":
+          return getExpensesByCategory();
+        default:
+          return [];
+      }
+    },
+    [getExpensesByMonth, generateForecastData, getExpensesByCategory]
+  );
+
+  const graphs: GraphData[] = useMemo(
+    () => [
+      { type: "monthly expense" },
+      { type: "expense forecast" },
+      { type: "categorical expense" },
+    ],
+    []
+  );
 
   return (
     <div className="space-y-4">
@@ -187,97 +166,7 @@ const Overview: React.FC<OverviewProps> = ({
         categories={categories}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Monthly Expenses</CardTitle>
-            <CardDescription>
-              Your expenses over the past months
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="h-[400px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={expensesByMonth}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="amount" fill="#8884d8" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Expenses Forecast</CardTitle>
-            <CardDescription>
-              Actual vs Forecasted Monthly Expenses
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="h-[400px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={generateForecastData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="actual"
-                  stroke="#8884d8"
-                  strokeWidth={3}
-                  name="Actual Expenses"
-                  dot={{ r: 5 }}
-                  activeDot={{ r: 8 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="forecast"
-                  stroke="#82ca9d"
-                  strokeWidth={3}
-                  name="Forecasted Expenses"
-                  dot={{ r: 5 }}
-                  activeDot={{ r: 8 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Expenses by Category</CardTitle>
-            <CardDescription>
-              Distribution of your expenses across categories
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="h-[400px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={expensesByCategory}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                  label={({ name, percent }) =>
-                    `${name} ${(percent * 100).toFixed(0)}%`
-                  }
-                >
-                  {expensesByCategory.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
+      <Carousel graphs={graphs} loadGraphData={loadGraphData} />
     </div>
   );
 };

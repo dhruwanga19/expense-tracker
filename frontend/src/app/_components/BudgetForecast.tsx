@@ -109,19 +109,6 @@ export const BudgetForecast: React.FC<BudgetForecastProps> = ({
             </div>
           ))}
         </div>
-        {/* <div className="mt-8 h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={budgetData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="categoryName" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="spent" name="Spent" fill="#8884d8" />
-              <Bar dataKey="remaining" name="Remaining" fill="#82ca9d" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div> */}
       </CardContent>
     </Card>
   );
